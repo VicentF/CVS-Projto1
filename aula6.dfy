@@ -1,7 +1,7 @@
 class Set {
     var store:array<int>;
     var nelems: int;
-    
+
     predicate RepInv()
     reads `store, store, `nelems
     {
