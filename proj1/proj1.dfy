@@ -1,3 +1,4 @@
+//Exercicio 1.a)
 function sum (a:array<int>, i:int, j:int) :int
 decreases j
 reads a
@@ -9,6 +10,7 @@ requires 0 <= i <= j <= a.Length
         a[j-1] + sum(a, i, j-1)
 }
 
+//Exercicio 1.b)
 method query (a:array<int>, i:int, j:int) returns (s:int)
 requires 0 <= i <= j <= a.Length
 ensures s == sum(a, i, j)
@@ -27,17 +29,15 @@ ensures s == sum(a, i, j)
     return s;
 }
 
+//Exercicio 1.c)
 lemma queryLemma(a:array<int>, i:int, j:int, k:int)
-    requires 0 <= i <= j <= a.Length
     requires 0 <= i <= k <= j <= a.Length
     ensures  sum(a,i,k) + sum(a,k,j) == sum(a,i,j)
 {
 }
 
-
-
 method queryFast (a:array<int>, c:array<int>, i:int, j:int) returns (r:int)
-requires is_prefix_sum_for(a,c) && 0 <= i <= j <= a.Length && a.Length < c.Length
+requires is_prefix_sum_for(a,c) && 0 <= i <= j <= a.Length < c.Length
 ensures r == sum(a, i,j)
 {
     r := c[j] - c[i];
@@ -54,22 +54,31 @@ reads c, a
     && forall j :: 1 <= j <= a.Length ==> c[j] == sum(a,0,j)
 }
 
+///Exercicio 2.
 datatype List<T> = Nil | Cons(head: T, tail: List<T>)
 
 method from_array<T>(a: array<T>) returns (l: List<T>)
 requires a.Length > 0
+ensures forall j::0 <= j < a.Length ==> mem(a[j],l)
 {
     var i:= a.Length-1;
-
     l:= Nil;
 
     while (i >= 0)
     invariant -1 <= i < a. Length
-    decreases i;
+    invariant forall j:: i+1 <= j < a.Length ==> mem(a[j],l)
     {
         l := Cons(a[i], l);
-        i:= i-1;
+        i := i - 1;
     }
-    return l;
 
+    return l;
+}
+
+function mem<T(==)> (x: T, l:List<T>) : bool
+decreases l
+{
+    match l
+    case Nil => false
+    case Cons(y,r)=> if (x==y) then true else mem(x,r)
 }
