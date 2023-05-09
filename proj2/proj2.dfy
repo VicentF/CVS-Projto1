@@ -50,6 +50,20 @@ class Hashtable<K(==,!new),V(!new)> {
     var size : int
     var data : array<List<(K,V)>>
 
+    ghost predicate valid_hash(d: array<List<(K,V)>>, i: int) 
+    requires 0 <= i < d.Length
+    reads d
+    {
+       forall k,v :: mem((k,v),d[i]) ==> bucket(k, d.Length) == i
+    }
+
+    ghost predicate valid_data(k: K, v: V, m: map<K, Option<V>>, d: array<List<(K,V)>>)
+    requires d.Length > 0
+    reads d
+    {
+        // TODO
+    }
+
     constructor(n: int)
     requires n > 0
     {
@@ -58,7 +72,7 @@ class Hashtable<K(==,!new),V(!new)> {
     }
 
     function hash(key: K) : int
-    function bucket(k: K,n: int) : int
+    function bucket(k: K, n: int) : int
 
     method clear() 
     {
