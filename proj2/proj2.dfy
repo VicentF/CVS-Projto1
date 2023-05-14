@@ -146,18 +146,19 @@ class Hashtable<K(==,!new),V(!new)> {
     {
         var oldData := data;
         var oldSize := data.Length;
-    
+
         if(size >= data.Length * 3/4) {
             resize();
         }
-    
+
+        remove(k);
         var hash := bucket(k, data.Length);
         data[hash] := Cons((k,v), data[hash]);
-    
+
         assert(mem((k,v), data[hash]));
-    
+
         size := size + 1;
-    
+
         if(data.Length == oldSize) {
             // the key-value pair was not added to data because resize was not called
             assert(mem((k,v), oldData[hash]));
