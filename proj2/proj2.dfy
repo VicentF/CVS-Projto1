@@ -141,10 +141,27 @@ class Hashtable<K(==,!new),V(!new)> {
 
     method add(k: K,v: V)
     requires data.Length > 0
-    ensures fresh(data)
-    modifies data, `data
+    ensures exists i:int :: 0 <= i < data.Length && mem((k,v), data[i])
+    modifies data, `data, `size 
     {
+        var oldData := data;
+        var oldSize := data.Length;
+    
+        if(size >= data.Length * 3/4) {
+            resize();
+        }
+    
         var hash := bucket(k, data.Length);
         data[hash] := Cons((k,v), data[hash]);
+    
+        assert(mem((k,v), data[hash]));
+    
+        size := size + 1;
+    
+        if(data.Length == oldSize) {
+            // the key-value pair was not added to data because resize was not called
+            assert(mem((k,v), oldData[hash]));
+            assert(exists i :: 0 <= i < data.Length && mem((k,v), data[i]));
+        }
     }
 }
