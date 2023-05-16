@@ -26,7 +26,7 @@ ensures match list_find(k,l)
     case Some(v) => mem((k,v),l)
     }
 {
-match l 
+    match l 
     {
         case Nil => None
         case Cons((k',v),xs) => if k==k' then Some(v) else list_find(k,xs)
@@ -37,7 +37,7 @@ function list_remove<K(==,!new),V(!new)>(k:K,l:List<(K,V)>) : List<(K,V)>
 decreases l
 ensures forall k' , v :: mem((k',v),list_remove(k,l)) <==> (mem((k',v),l) && k != k')
 {
-match l 
+    match l 
     {
         case Nil => Nil
         case Cons((k',v),xs) => if k==k' then list_remove(k,xs) else
@@ -61,18 +61,24 @@ class Hashtable<K(==,!new),V(!new)> {
     requires d.Length > 0
     reads d
     {
-        // TODO
+        mem((k,v), d[bucket(k, d.Length)]) ==> k in m && m[k] == Some(v)
     }
 
     constructor(n: int)
     requires n > 0
+    ensures data.Length > 0
     {
         size := 0;
         data := new List<(K,V)>[n];
     }
 
     function hash(key: K) : int
+
     function bucket(k: K, n: int) : int
+    requires n > 0
+    {
+        hash(k) % n
+    }
 
     method clear() 
     {
@@ -80,22 +86,83 @@ class Hashtable<K(==,!new),V(!new)> {
     }
 
     method resize()
+    requires data.Length > 0
+    ensures old(data.Length) < data.Length
+    ensures fresh(data)
+    modifies data, `data, `size
     {
+        var newData := new List<(K,V)>[data.Length*2];
+        var i := data.Length - 1;
 
+        while(i >= 0)
+        decreases i
+        invariant -1 <= i < data.Length
+        {
+            var current := data[i];
+
+            if(current != Nil) {
+                while (current != Nil)
+                decreases current
+                invariant current != Nil
+                {
+                    var hash := bucket(current.head.0, newData.Length);
+                    newData[hash] := Cons(current.head, newData[hash]);
+
+                    assert(mem((current.head.0, current.head.1), newData[hash]));
+                    current := current.tail;
+                    break;
+                }
+            }
+
+            i := i - 1;
+        }
+        
+        data := newData;
     }
 
-    method find(k: K) returns (r: Option<V>) 
+    method find(k: K) returns (r: Option<V>)
     {
+        /*
+        matchlistfin(k,l)
+        case none => ...
+        case some(V) => ...
+        */
         r := None;
     }
 
-    method remove(k: K) 
+    method remove(k: K)
     {
-
+        /*
+        match listfind(k.l)
+        case none => ...
+        case some(V) => ...
+        */
     }
 
     method add(k: K,v: V)
+    requires data.Length > 0
+    ensures exists i:int :: 0 <= i < data.Length && mem((k,v), data[i])
+    modifies data, `data, `size 
     {
+        var oldData := data;
+        var oldSize := data.Length;
 
+        if(size >= data.Length * 3/4) {
+            resize();
+        }
+
+        remove(k);
+        var hash := bucket(k, data.Length);
+        data[hash] := Cons((k,v), data[hash]);
+
+        assert(mem((k,v), data[hash]));
+
+        size := size + 1;
+
+        if(data.Length == oldSize) {
+            // the key-value pair was not added to data because resize was not called
+            assert(mem((k,v), oldData[hash]));
+            assert(exists i :: 0 <= i < data.Length && mem((k,v), data[i]));
+        }
     }
 }
