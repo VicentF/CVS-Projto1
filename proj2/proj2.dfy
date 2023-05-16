@@ -95,6 +95,32 @@ class Hashtable<K(==,!new),V(!new)> {
         
     }
 
+    method rehash(l: List<(K,V)>, newData: array<List<(K,V)>>, newSize:int, i:int, oldSize:int) returns (newList:())
+    requires newData.Length == data.Length*2 == newSize
+    requires 0 < oldSize == data.Length
+    requires forall j :: 0 <= j < newSize ==> valid_hash(newData, j)
+    requires forall k,v :: mem((k,v), l) ==> bucket(k, oldSize) == i
+    requires forall k,v :: (if 0 <= bucket(k, oldSize) < i then valid_data(k, v, Map, newData)
+                            else if bucket(k, oldSize) == i then ((k in Map && Map[k] == Some(v)) <==> mem((k,v), l) || mem((k,v), newData[bucket(k, newData.Length)]))
+                            else !mem((k,v), newData[bucket(k, newData.Length)]))
+    ensures forall j :: 0 <= j < newSize ==> valid_hash(newData, j)
+    ensures forall k,v :: (if 0 <=bucket(k, oldSize) <= i then valid_data(k, v, Map, newData)
+                           else !mem((k,v), newData[bucket(k, newData.Length)]))
+    ensures Valid()
+    decreases l        
+    modifies newData               
+    {
+        match l
+        {
+            case Nil => return ();
+            case Cons((k,v), xs) =>
+                var newHash := bucket(k, newSize);
+                newData[newHash] := Cons((k,v), newData[newHash]);
+                var newList := rehash(xs, newData, newSize, i, oldSize);
+                return newList;
+        }
+    }
+
     method resize()
     requires data.Length > 0
     ensures old(data.Length) < data.Length
@@ -109,22 +135,7 @@ class Hashtable<K(==,!new),V(!new)> {
         decreases i
         invariant -1 <= i < data.Length
         {
-            var current := data[i];
-
-            if(current != Nil) {
-                while (current != Nil)
-                decreases current
-                invariant current != Nil
-                {
-                    var hash := bucket(current.head.0, newData.Length);
-                    newData[hash] := Cons(current.head, newData[hash]);
-
-                    assert(mem((current.head.0, current.head.1), newData[hash]));
-                    current := current.tail;
-                    break;
-                }
-            }
-
+            //rehash(data[i], newData, data.Length*2, i, data.Length);
             i := i - 1;
         }
         
