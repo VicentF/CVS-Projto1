@@ -91,8 +91,11 @@ class Hashtable<K(==,!new),V(!new)> {
     }
 
     method clear() 
+    ensures old(data.Length) == data.Length
+    ensures fresh(data)
+    modifies data, `data
     {
-        
+        data := new List<(K,V)>[data.Length];
     }
 
     method rehash(l: List<(K,V)>, newData: array<List<(K,V)>>, newSize:int, i:int, oldSize:int) returns (newList:())
