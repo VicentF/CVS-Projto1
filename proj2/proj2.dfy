@@ -62,7 +62,7 @@ class Hashtable<K(==,!new),V(!new)> {
     requires d.Length > 0
     reads d
     {
-        mem((k,v), d[bucket(k, d.Length)]) ==> k in m && m[k] == Some(v)
+        mem((k,v), d[bucket(k, d.Length)]) <==> (k in m && m[k] == Some(v))
     }
 
     ghost predicate Valid()
@@ -71,15 +71,17 @@ class Hashtable<K(==,!new),V(!new)> {
         data.Length > 0 &&
         (forall i:int :: 0 <= i < data.Length ==> valid_hash(data, i))
         &&
-        forall k,v :: valid_data(k,v,Map,data)
+        (forall k,v :: valid_data(k,v,Map,data))
     }
 
     constructor(n: int)
     requires n > 0
     ensures data.Length > 0
+    ensures Valid()
     {
         size := 0;
-        data := new List<(K,V)>[n];
+        data := new List<(K,V)>[n] (i => Nil);
+        Map := map[];
     }
 
     function hash(key: K) : int
@@ -91,14 +93,20 @@ class Hashtable<K(==,!new),V(!new)> {
     }
 
     method clear()
+    requires Valid()
     ensures old(data.Length) == data.Length
     ensures fresh(data)
-    modifies data, `data
+    ensures Valid()
+    modifies this, data, `data
     {
-        data := new List<(K,V)>[data.Length];
+        size := 0;
+        data := new List<(K,V)>[data.Length](i => Nil);
+        Map := map[];
     }
 
-    method rehash(l: List<(K,V)>, newData: array<List<(K,V)>>, newSize:int, i:int, oldSize:int) returns (newList:())
+
+method rehash(l: List<(K,V)>, newData: array<List<(K,V)>>, newSize:int, i:int, oldSize:int) returns (newList:())
+    requires newData != data
     requires newData.Length == data.Length*2 == newSize
     requires 0 < oldSize == data.Length
     requires forall j :: 0 <= j < newSize ==> valid_hash(newData, j)
@@ -109,7 +117,6 @@ class Hashtable<K(==,!new),V(!new)> {
     ensures forall j :: 0 <= j < newSize ==> valid_hash(newData, j)
     ensures forall k,v :: (if 0 <=bucket(k, oldSize) <= i then valid_data(k, v, Map, newData)
                            else !mem((k,v), newData[bucket(k, newData.Length)]))
-    ensures Valid()
     decreases l
     modifies newData
     {
@@ -118,39 +125,52 @@ class Hashtable<K(==,!new),V(!new)> {
             case Nil => return ();
             case Cons((k,v), xs) =>
                 var newHash := bucket(k, newSize);
+                assert(exists v:V :: mem((k,v),l));
                 newData[newHash] := Cons((k,v), newData[newHash]);
-                var newList := rehash(xs, newData, newSize, i, oldSize);
-                return newList;
+                assert(mem((k,v), newData[newHash]));
+                var newList' := rehash(xs, newData, newSize, i, oldSize);
+                return newList';
         }
     }
 
     method resize()
     requires data.Length > 0
+    requires size > 0
+    requires Valid()
     ensures old(data.Length) < data.Length
     ensures fresh(data)
     ensures Valid()
-    modifies data, `data, `size
+    modifies this, data
     {
-        var newData := new List<(K,V)>[data.Length*2];
-        var i := data.Length - 1;
+        var oldSize := data.Length;
+        var newSize := data.Length*2;
+        var newData := new List<(K,V)>[newSize];
+        var i := 0;
 
-        while(i >= 0)
-        decreases i
-        invariant -1 <= i < data.Length
+        while(i < data.Length)
+        decreases data.Length - i
+        modifies data, newData
+        invariant 0 <= i < data.Length
+        invariant data.Length*2== newData.Length == newSize
+        invariant data.Length == oldSize
+        invariant newSize == 2*oldSize
+        assert Valid();
         {
-            //rehash(data[i], newData, data.Length*2, i, data.Length);
-            i := i - 1;
+            var _ := rehash(data[i], newData, newSize, i, oldSize);
+            i := i + 1;
         }
 
         data := newData;
     }
 
-method find(k: K) returns (r: Option<V>)
-    requires data.Length > 0
-    //ensures exists i:: 0 <= i < data.Length && r == list_find(k, data[i])
+    method find(k: K) returns (r: Option<V>)
+        requires data.Length > 0
+        requires Valid()
+        ensures Valid()
     {
         var i := data.Length - 1;
         r:= None;
+
         while (i >= data.Length)
         decreases i
         invariant -1 <= i < data.Length
@@ -164,25 +184,39 @@ method find(k: K) returns (r: Option<V>)
 
     method remove(k: K)
     requires data.Length > 0
-    modifies data
+    requires Valid()
+    ensures size <= old(size)
+    ensures Valid()
+    modifies this, data, `data, `size
     {
         var i := data.Length - 1;
-        while (i >= data.Length)
-        decreases i
-        invariant -1 <= i < data.Length
-        {
-            match list_find(k,data[i])
-                case none =>
-                case Some(V) => data[i]:=list_remove(k,data[i]);
-        }
+
+        var hash := bucket(k, data.Length);
+        match list_find(k, data[hash])
+                case None =>
+                    assert(forall v:V:: !mem((k,v), data[hash]));
+                    assert(size == old(size));
+                    assert(Valid());
+                case Some(V) =>
+                    assert(exists v:V:: mem((k,v), data[hash]));
+                    assert forall k,v :: valid_data(k,v,Map,data) && (k in Map && Map[k] == Some(v)) <==> mem((k,v),data[bucket(k,data.Length)]);
+                    data[hash] := list_remove(k, data[hash]);
+                    Map := Map[k := None];
+                    assert(forall v:V:: !mem((k,v), data[hash]));
+                    assert(Map[k] == None);
+                    size := size - 1;
+                    assert(size < old(size));
+                    assert forall k,v :: valid_data(k,v,Map,data) && (k in Map && Map[k] == Some(v)) <==> mem((k,v),data[bucket(k,data.Length)]);
+                    assert(Valid());
     }
 
 
     method add(k: K,v: V)
     requires data.Length > 0
+    requires Valid()
     ensures exists i:int :: 0 <= i < data.Length && mem((k,v), data[i])
     ensures Valid()
-    modifies data, `data, `size
+    modifies this, data, `data, `size
     {
         var oldData := data;
         var oldSize := data.Length;
@@ -194,6 +228,7 @@ method find(k: K) returns (r: Option<V>)
         remove(k);
         var hash := bucket(k, data.Length);
         data[hash] := Cons((k,v), data[hash]);
+        Map := Map[k := Some(v)];
 
         assert(mem((k,v), data[hash]));
 
