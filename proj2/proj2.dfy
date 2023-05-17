@@ -49,6 +49,7 @@ ensures forall k' , v :: mem((k',v),list_remove(k,l)) <==> (mem((k',v),l) && k !
 class Hashtable<K(==,!new),V(!new)> {
     var size : int
     var data : array<List<(K,V)>>
+    var Map : map<K, Option<V>>
 
     ghost predicate valid_hash(d: array<List<(K,V)>>, i: int)
     requires 0 <= i < d.Length
@@ -62,6 +63,15 @@ class Hashtable<K(==,!new),V(!new)> {
     reads d
     {
         mem((k,v), d[bucket(k, d.Length)]) ==> k in m && m[k] == Some(v)
+    }
+
+    ghost predicate Valid()
+    reads this, data
+    {
+        data.Length > 0 &&
+        (forall i:int :: 0 <= i < data.Length ==> valid_hash(data, i))
+        &&
+        forall k,v :: valid_data(k,v,Map,data)
     }
 
     constructor(n: int)
@@ -89,6 +99,7 @@ class Hashtable<K(==,!new),V(!new)> {
     requires data.Length > 0
     ensures old(data.Length) < data.Length
     ensures fresh(data)
+    ensures Valid()
     modifies data, `data, `size
     {
         var newData := new List<(K,V)>[data.Length*2];
@@ -98,22 +109,7 @@ class Hashtable<K(==,!new),V(!new)> {
         decreases i
         invariant -1 <= i < data.Length
         {
-            var current := data[i];
-
-            if(current != Nil) {
-                while (current != Nil)
-                decreases current
-                invariant current != Nil
-                {
-                    var hash := bucket(current.head.0, newData.Length);
-                    newData[hash] := Cons(current.head, newData[hash]);
-
-                    assert(mem((current.head.0, current.head.1), newData[hash]));
-                    current := current.tail;
-                    break;
-                }
-            }
-
+            //rehash(data[i], newData, data.Length*2, i, data.Length);
             i := i - 1;
         }
 
