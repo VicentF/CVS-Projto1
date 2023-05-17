@@ -91,8 +91,37 @@ class Hashtable<K(==,!new),V(!new)> {
     }
 
     method clear()
+    ensures old(data.Length) == data.Length
+    ensures fresh(data)
+    modifies data, `data
     {
+        data := new List<(K,V)>[data.Length];
+    }
 
+    method rehash(l: List<(K,V)>, newData: array<List<(K,V)>>, newSize:int, i:int, oldSize:int) returns (newList:())
+    requires newData.Length == data.Length*2 == newSize
+    requires 0 < oldSize == data.Length
+    requires forall j :: 0 <= j < newSize ==> valid_hash(newData, j)
+    requires forall k,v :: mem((k,v), l) ==> bucket(k, oldSize) == i
+    requires forall k,v :: (if 0 <= bucket(k, oldSize) < i then valid_data(k, v, Map, newData)
+                            else if bucket(k, oldSize) == i then ((k in Map && Map[k] == Some(v)) <==> mem((k,v), l) || mem((k,v), newData[bucket(k, newData.Length)]))
+                            else !mem((k,v), newData[bucket(k, newData.Length)]))
+    ensures forall j :: 0 <= j < newSize ==> valid_hash(newData, j)
+    ensures forall k,v :: (if 0 <=bucket(k, oldSize) <= i then valid_data(k, v, Map, newData)
+                           else !mem((k,v), newData[bucket(k, newData.Length)]))
+    ensures Valid()
+    decreases l
+    modifies newData
+    {
+        match l
+        {
+            case Nil => return ();
+            case Cons((k,v), xs) =>
+                var newHash := bucket(k, newSize);
+                newData[newHash] := Cons((k,v), newData[newHash]);
+                var newList := rehash(xs, newData, newSize, i, oldSize);
+                return newList;
+        }
     }
 
     method resize()
@@ -116,32 +145,43 @@ class Hashtable<K(==,!new),V(!new)> {
         data := newData;
     }
 
-    method find(k: K) returns (r: Option<V>)
-    requires data.Length > 0 &&
-    ensures r == list_find(k, data)
-    reads data
+method find(k: K) returns (r: Option<V>)
+    requires data.Length > 0
+    //ensures exists i:: 0 <= i < data.Length && r == list_find(k, data[i])
     {
-
-        match list_find(k,data)
-        case none => r:= none;
-        case some(V) => r := some(v);
-
+        var i := data.Length - 1;
+        r:= None;
+        while (i >= data.Length)
+        decreases i
+        invariant -1 <= i < data.Length
+        {
+            match list_find(k,data[i])
+                case None =>
+                case Some(V) => r := Some(V);
+            i := i -1;
+        }
     }
 
     method remove(k: K)
-    requires data.length > 0
-    ensures list_remove(k, data) && old(nelems) < nelems
-    reads data
+    requires data.Length > 0
     modifies data
     {
-        match list_find(k,data)
-        case none => r:= none;
-        case some(V) => list_remove(k,data);
+        var i := data.Length - 1;
+        while (i >= data.Length)
+        decreases i
+        invariant -1 <= i < data.Length
+        {
+            match list_find(k,data[i])
+                case none =>
+                case Some(V) => data[i]:=list_remove(k,data[i]);
+        }
     }
+
 
     method add(k: K,v: V)
     requires data.Length > 0
     ensures exists i:int :: 0 <= i < data.Length && mem((k,v), data[i])
+    ensures Valid()
     modifies data, `data, `size
     {
         var oldData := data;
