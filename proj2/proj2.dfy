@@ -1,32 +1,32 @@
 datatype List<T> = Nil | Cons(head: T,tail: List<T>)
 datatype Option<T> = None | Some(elem: T)
 
-ghost function mem<T>(x:T,l:List<T>) : bool 
+ghost function mem<T>(x:T,l:List<T>) : bool
 {
-    match l 
+    match l
     {
         case Nil => false
         case Cons(y,xs) => x==y || mem(x,xs)
     }
 }
 
-ghost function length<T>(l:List<T>) : int 
+ghost function length<T>(l:List<T>) : int
 {
-    match l 
+    match l
     {
         case Nil => 0
         case Cons(_,xs) => 1 + length(xs)
-    } 
+    }
 }
 
 function list_find<K(==),V(!new)>(k:K,l:List<(K,V)>) : Option<V>
-ensures match list_find(k,l) 
+ensures match list_find(k,l)
     {
     case None => forall v :: !mem((k,v),l)
     case Some(v) => mem((k,v),l)
     }
 {
-    match l 
+    match l
     {
         case Nil => None
         case Cons((k',v),xs) => if k==k' then Some(v) else list_find(k,xs)
@@ -37,12 +37,12 @@ function list_remove<K(==,!new),V(!new)>(k:K,l:List<(K,V)>) : List<(K,V)>
 decreases l
 ensures forall k' , v :: mem((k',v),list_remove(k,l)) <==> (mem((k',v),l) && k != k')
 {
-    match l 
+    match l
     {
         case Nil => Nil
         case Cons((k',v),xs) => if k==k' then list_remove(k,xs) else
         Cons((k',v),list_remove(k,xs))
-    } 
+    }
 }
 
 
@@ -50,7 +50,7 @@ class Hashtable<K(==,!new),V(!new)> {
     var size : int
     var data : array<List<(K,V)>>
 
-    ghost predicate valid_hash(d: array<List<(K,V)>>, i: int) 
+    ghost predicate valid_hash(d: array<List<(K,V)>>, i: int)
     requires 0 <= i < d.Length
     reads d
     {
@@ -80,9 +80,9 @@ class Hashtable<K(==,!new),V(!new)> {
         hash(k) % n
     }
 
-    method clear() 
+    method clear()
     {
-        
+
     }
 
     method resize()
@@ -116,33 +116,37 @@ class Hashtable<K(==,!new),V(!new)> {
 
             i := i - 1;
         }
-        
+
         data := newData;
     }
 
     method find(k: K) returns (r: Option<V>)
+    requires data.Length > 0 &&
+    ensures r == list_find(k, data)
+    reads data
     {
-        /*
-        matchlistfin(k,l)
-        case none => ...
-        case some(V) => ...
-        */
-        r := None;
+
+        match list_find(k,data)
+        case none => r:= none;
+        case some(V) => r := some(v);
+
     }
 
     method remove(k: K)
+    requires data.length > 0
+    ensures list_remove(k, data) && old(nelems) < nelems
+    reads data
+    modifies data
     {
-        /*
-        match listfind(k.l)
-        case none => ...
-        case some(V) => ...
-        */
+        match list_find(k,data)
+        case none => r:= none;
+        case some(V) => list_remove(k,data);
     }
 
     method add(k: K,v: V)
     requires data.Length > 0
     ensures exists i:int :: 0 <= i < data.Length && mem((k,v), data[i])
-    modifies data, `data, `size 
+    modifies data, `data, `size
     {
         var oldData := data;
         var oldSize := data.Length;
