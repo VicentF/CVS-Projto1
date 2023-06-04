@@ -71,16 +71,27 @@ public class Stack {
     }
 
     public void flip() 
+    //@ requires StackInv(this, ?l);
+    //@ ensures StackInv(this, reverse(l));
     {
-    	 Node prev = null;
-         Node current = head;
-         Node next = null;
-         while (current != null) {
-             next = current.next;
-             current.next = prev;
-             prev = current;
-             current = next;
+    	 Node n = null;
+         //@ open StackInv(this, l);
+         while (head != null) 
+         //@ invariant head |-> ?h &*& List(h, ?l1) &*& List(n, ?l2) &*& l == append(reverse(l2), l1);
+         {
+             Node next = head.next;
+             head.next = n;
+             n = head;
+             head = next;
+             //@assert l1 == cons(?v,?tail0) &*& l == append(reverse(l2),cons(v,tail0));
+	     //@reverse_reverse(cons(v,tail0));
+	     //@reverse_append( reverse(cons(v,tail0)) , l2 );
+	     //@append_assoc(reverse(tail0),cons(v,nil),l2);
+	     //@reverse_append(reverse(tail0),cons(v,l2));
+	     //@reverse_reverse(tail0);
          }
-         head = prev;
+         //@ open List(h, l1);
+         head = n;
+         //@append_nil(reverse(l2));
     }
 }
