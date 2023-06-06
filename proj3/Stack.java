@@ -9,36 +9,6 @@ import java.util.concurrent.locks.*;
 	predicate NonEmptyStackInv(Stack t; list<int> elems) = t.head |-> ?h &*& h != null &*& List(h, elems);
 @*/
 
-// TASK 2 - predicates and Lemmas
-/*@
-	lemma void append_nnil(list<int> l1, list<int> l2)
-		requires l2 != nil;
-		ensures append(l1,l2) != nil;
-	{
-		switch (l1) 
-		{
-			case nil:
-			case cons(x,xs):
-		}
-	}
-
-	lemma void reverse_nnil(list<int> xs)
-		requires xs != nil;
-		ensures reverse(xs) != nil;
-	{
-		switch(xs) 
-		{
-			case nil:
-			case cons(h, t):
-			append_nnil(reverse(t),cons(h,nil));
-		}
-	}
-@*/
-
-/*@
-	predicate CQueueInv(CQueue q; list<int> elems) = (q.left |-> ?l &*& StackInv(l, elems)) &*& (q.right |-> ?r &*& StackInv(r, elems));
-@*/
-
 class Node {
 	
 	Node next;
@@ -126,6 +96,43 @@ public class Stack {
     	}
 }
 
+// TASK 2 - predicates and Lemmas
+/*@
+	lemma void append_nnil(list<int> l1, list<int> l2)
+		requires l2 != nil;
+		ensures append(l1,l2) != nil;
+	{
+		switch (l1) 
+		{
+			case nil:
+			case cons(x,xs):
+		}
+	}
+
+	lemma void reverse_nnil(list<int> xs)
+		requires xs != nil;
+		ensures reverse(xs) != nil;
+	{
+		switch(xs) 
+		{
+			case nil:
+			case cons(h, t):
+			append_nnil(reverse(t),cons(h,nil));
+		}
+	}
+	
+@*/
+
+/*@
+	predicate CQueueInv(CQueue q, list<int> elems) = q.mon |-> ?l 
+							&*& l != null 
+							&*& lck(l, 1, CQueue_shared_state(q, elems));
+
+	
+	predicate_ctor CQueue_shared_state (CQueue q, list<int> elems) () = (q.left |-> ?l &*& StackInv(l, elems)) 
+									     &*& (q.right |-> ?r &*& StackInv(r, elems));
+@*/
+
 
 
 // TASK 2
@@ -141,14 +148,18 @@ public class CQueue {
 	{
 		this.left = new Stack();
 		this.right = new Stack();
-		//mon = new ReentrantLock();
+		
+		this.mon = new ReentrantLock();
+		
 	}
 	
 	private void enqueue(int elem) 
-	// requires
-	// ensures
+	// requires CQueueInv(this, ?l);
+	// ensures NonEmptyStackInv(this.left, cons(?v, ?t));
 	{
+		//mon.lock(); 
 		this.left.push(elem);
+		//mon.unlock();
 	}
 	
 	public void flush() 
