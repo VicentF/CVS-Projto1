@@ -1,6 +1,7 @@
 import java.util.concurrent.*;
 import java.util.concurrent.locks.*;
 
+// TASK 1 - predicates
 /*@
 	predicate Node(Node t; Node n, int v) = t.next |-> n &*& t.val |-> v;
 	predicate List(Node n; list<int> elems) = n == null? (emp &*& elems == nil): Node(n,?nn,?v) &*& List(nn,?tail) &*& elems == cons(v,tail);
@@ -8,6 +9,7 @@ import java.util.concurrent.locks.*;
 	predicate NonEmptyStackInv(Stack t; list<int> elems) = t.head |-> ?h &*& h != null &*& List(h, elems);
 @*/
 
+// TASK 2 - predicates and Lemmas
 /*@
 	lemma void append_nnil(list<int> l1, list<int> l2)
 		requires l2 != nil;
@@ -31,6 +33,10 @@ import java.util.concurrent.locks.*;
 			append_nnil(reverse(t),cons(h,nil));
 		}
 	}
+@*/
+
+/*@
+	predicate CQueueInv(CQueue q; list<int> elems) = (q.left |-> ?l &*& StackInv(l, elems)) &*& (q.right |-> ?r &*& StackInv(r, elems));
 @*/
 
 class Node {
@@ -130,12 +136,12 @@ public class CQueue {
 	ReentrantLock mon;
 	
 	public CQueue()
-	// requires true;
-	// ensures StackInv(left, nil) &*& StackInv(right, nil);
+	//@ requires true;
+	//@ ensures CQueueInv(this, nil);
 	{
 		this.left = new Stack();
 		this.right = new Stack();
-		mon = new ReentrantLock();
+		//mon = new ReentrantLock();
 	}
 	
 	private void enqueue(int elem) 
