@@ -130,7 +130,8 @@ public class Stack {
 
 	
 	predicate_ctor CQueue_shared_state (CQueue q, list<int> left, list<int> right) () = (q.left |-> ?l &*& StackInv(l, left)) 
-									     		&*& (q.right |-> ?r &*& StackInv(r, right));
+									     		&*& (q.right |-> ?r &*& StackInv(r, right))
+									     		&*& l != null &*& r != null;
 @*/
 
 
@@ -159,11 +160,11 @@ public class CQueue {
 	//@ requires CQueueInv(this, ?l, ?r);
 	//@ ensures NonEmptyStackInv(this.left, cons(?v, ?t)) &*& CQueueInv(this, ?l2, r);
 	{
-		
+		//@ open CQueueInv(this, l, r);
 		this.mon.lock(); 
 		//@ open CQueue_shared_state(this, l, r)();
 		this.left.push(elem);
-		//@ close CQueue_shared_state(this, Cons(elem, l), r)();
+		//@ close CQueue_shared_state(this, l, r)();
 		this.mon.unlock();
 	}
 	
@@ -190,4 +191,22 @@ public class CQueue {
 	{
 		return this.right.isEmpty() && this.left.isEmpty();
 	}
+	
 }
+
+/*
+public static void main(String[] args)
+    //@ requires System_out(?o) &*& o != null;
+    //@ ensures true;
+    {
+        CQueue q = new CQueue();
+        for(int i = 0 ; i < 100 ; i++)
+        //@ invariant [?f]CQueueInv(q) &*& [_]System_out(o) &*& o != null;
+        {
+            //@ close [f/2]CQueueInv(q);
+            (new MyEnqThread(q, i)).start();
+            //@ close [f/4]CQueueInv(q);
+            (new MyDeqThread(q)).start();
+        }
+    }
+*/
