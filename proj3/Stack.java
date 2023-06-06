@@ -124,13 +124,13 @@ public class Stack {
 @*/
 
 /*@
-	predicate CQueueInv(CQueue q, list<int> elems) = q.mon |-> ?l 
-							&*& l != null 
-							&*& lck(l, 1, CQueue_shared_state(q, elems));
+	predicate CQueueInv(CQueue q, list<int> left, list<int> right) = q.mon |-> ?l 
+									&*& l != null 
+									&*& lck(l, 1, CQueue_shared_state(q, left, right));
 
 	
-	predicate_ctor CQueue_shared_state (CQueue q, list<int> elems) () = (q.left |-> ?l &*& StackInv(l, elems)) 
-									     &*& (q.right |-> ?r &*& StackInv(r, elems));
+	predicate_ctor CQueue_shared_state (CQueue q, list<int> left, list<int> right) () = (q.left |-> ?l &*& StackInv(l, left)) 
+									     		&*& (q.right |-> ?r &*& StackInv(r, right));
 @*/
 
 
@@ -144,22 +144,27 @@ public class CQueue {
 	
 	public CQueue()
 	//@ requires true;
-	//@ ensures CQueueInv(this, nil);
+	//@ ensures CQueueInv(this, nil, nil);
 	{
 		this.left = new Stack();
 		this.right = new Stack();
-		
+		//@ close CQueue_shared_state(this, nil, nil)();
+		//@ close enter_lck(1, CQueue_shared_state(this, nil, nil));
 		this.mon = new ReentrantLock();
-		
+		//@ assert this.mon |-> ?l  &*& lck(l, 1, CQueue_shared_state(this, nil, nil));
+ 		//@ close CQueueInv(this, nil, nil);
 	}
 	
 	private void enqueue(int elem) 
-	// requires CQueueInv(this, ?l);
-	// ensures NonEmptyStackInv(this.left, cons(?v, ?t));
+	//@ requires CQueueInv(this, ?l, ?r);
+	//@ ensures NonEmptyStackInv(this.left, cons(?v, ?t)) &*& CQueueInv(this, ?l2, r);
 	{
-		//mon.lock(); 
+		
+		this.mon.lock(); 
+		//@ open CQueue_shared_state(this, l, r)();
 		this.left.push(elem);
-		//mon.unlock();
+		//@ close CQueue_shared_state(this, Cons(elem, l), r)();
+		this.mon.unlock();
 	}
 	
 	public void flush() 
