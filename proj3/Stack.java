@@ -74,7 +74,17 @@ public class Stack {
     //@ requires StackInv(this, ?l);
     //@ ensures StackInv(this, reverse(l));
     {
+    	 Node prev = null;
+         Node current = head;
+         Node next = null;
+         
+         while (current != null) {
+             next = current.next;
+             current.next = prev;
+             prev = current;
+             current = next;
     	 Node n = null;
+         
          //@ open StackInv(this, l);
          while (head != null) 
          //@ invariant head |-> ?h &*& List(h, ?l1) &*& List(n, ?l2) &*& l == append(reverse(l2), l1);
@@ -90,8 +100,49 @@ public class Stack {
 	     //@reverse_append(reverse(tail0),cons(v,l2));
 	     //@reverse_reverse(tail0);
          }
+         
+         head = prev;
          //@ open List(h, l1);
          head = n;
          //@append_nil(reverse(l2));
+    	}
     }
+}
+
+
+
+public class CQueue {
+
+	Stack left;
+	Stack right;
+	
+	public CQueue() {
+		this.left = new Stack();
+		this.right = new Stack();
+	}
+	
+	private void enqueue(int elem) {
+		this.left.push(elem);
+		
+	}
+	
+	public void flush() {
+		this.right = this.left.flip();
+		this.left = new Stack();
+	}
+	
+	public int dequeue() {
+		if (this.right.isEmpty())
+			flush();
+		return this.right.pop();
+	}
+	
+	public boolean isEmpty() {
+		boolean empty = false;
+		if (this.right.isEmpty())
+			empty = true;
+		if (this.left.isEmpty())
+			empty = true;
+		return empty;
+	}
 }
