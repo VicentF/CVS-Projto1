@@ -1,14 +1,14 @@
 class MyDeqThread implements Runnable {
 
-	public CQueue loc_cc;
-  	//@ predicate pre() = MyDeqThreadInv(this);
+	CQueue q;
+  	//@ predicate pre() = CQueueInv(this.q);
   	//@ predicate post() = true;
   
   	public MyDeqThread(CQueue cc)
   	//@ requires cc != null &*& [1/2]CQueueInv(cc);
-  	//@ ensures Deq_threadInv(this);
+  	//@ ensures CQueueInv(this.q);
   	{
-   		loc_cc = cc;
+   		this.q = cc;
   	}
   	
   	public void run()
@@ -16,9 +16,9 @@ class MyDeqThread implements Runnable {
  	//@ ensures post();
   	{
    		while(true)
-   		//@ invariant Deq_threadInv(this);
+   		//@ invariant CQueueInv(this.q);
  		{ 
- 			loc_cc.dequeue();
+ 			q.dequeue();
  		}
   	}
 }

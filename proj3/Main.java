@@ -6,9 +6,10 @@ public static void Main(String[] args)
         for(int i = 0 ; i < 100 ; i++)
         //@ invariant [?f]CQueueInv(q) &*& [_]System_out(o) &*& o != null;
         {
+       	    
             //@ close [f/2]CQueueInv(q);
-            (new MyEnqThread(q, i)).start();
+            (new MyEnqThread(q, i)).run();
             //@ close [f/4]CQueueInv(q);
-            (new MyDeqThread(q)).start();
+            (new MyDeqThread(q)).run();
         }
-    }
+    } 

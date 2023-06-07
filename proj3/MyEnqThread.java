@@ -1,16 +1,16 @@
 class MyEnqThread implements Runnable {
 
-	public CQueue loc_cc;
-	public int val;	
-  	//@ predicate pre() = MyEnqThreadInv(this);
+	CQueue q;
+	int val;	
+  	//@ predicate pre() = CQueueInv(this.q);
   	//@ predicate post() = true;
   
   	public MyEnqThread(CQueue cc, int i)
   	//@ requires cc != null &*& [1/2]CQueueInv(cc);
-  	//@ ensures Enq_threadInv(this);
+  	//@ ensures CQueueInv(this.q);
   	{
-   		loc_cc = cc;
-   		val = i;
+   		this.q = cc;
+   		this.val = i;
   	}
   	
   	public void run()
@@ -18,9 +18,9 @@ class MyEnqThread implements Runnable {
  	//@ ensures post();
   	{
    		while(true)
-   		//@ invariant Enq_threadInv(this);
+   		//@ invariant CQueueInv(this.q);
  		{ 
- 			loc_cc.enqueue(i);
+ 			q.enqueue(i);
  		}
   	}
 }
