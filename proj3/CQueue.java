@@ -31,12 +31,18 @@ import java.util.concurrent.locks.*;
 /*@
 	predicate CQueueInv(CQueue q;) = q.mon |-> ?l 
 					&*& l != null 
-					&*& lck(l, 1, CQueue_shared_state(q));
+					&*& lck(l, 1, CQueue_shared_state(q))
+					&*& q.empty |-> ?qc
+					&*& qc != null
+					&*& cond(qc, CQueue_shared_state(q), CQueue_emptyQueue(q));
 
 	
 	predicate_ctor CQueue_shared_state (CQueue q) () = (q.left |-> ?l &*& StackInv(l, ?l1)) 
 							&*& (q.right |-> ?r &*& StackInv(r, ?r2))
 							&*& l != null &*& r != null;
+							
+	predicate_ctor CQueue_emptyQueue(CQueue q) () = q.left |-> ?l &*& StackInv(l, ?ll) &*& ll == nil
+							&*& q.right |-> ?r &*& StackInv(l, ?lr) &*& lr == nil;
 @*/
 
 // TASK 2
@@ -45,6 +51,7 @@ public class CQueue {
 	Stack left;
 	Stack right;
 	ReentrantLock mon;
+	Condition empty;
 	
 	public CQueue()
 	//@ requires true;
@@ -56,6 +63,8 @@ public class CQueue {
 		//@ close enter_lck(1, CQueue_shared_state(this));
 		this.mon = new ReentrantLock();
 		//@ assert this.mon |-> ?l  &*& lck(l, 1, CQueue_shared_state(this));
+ 		//@ close set_cond(CQueue_shared_state(this), CQueue_emptyQueue(this));
+		this.empty = mon.newCondition();
  		//@ close CQueueInv(this);
 	}
 	
@@ -76,13 +85,11 @@ public class CQueue {
 	//@ ensures CQueueInv(this);
 	{	
 		//@ open CQueueInv(this);
-		this.mon.lock();
 		//@ open CQueue_shared_state(this)();
 		this.left.flip();
 		this.right = this.left;
 		this.left = new Stack();
 		//@ close CQueue_shared_state(this)();
-		this.mon.unlock();
 	}
 	
 	public int dequeue() 
@@ -92,10 +99,19 @@ public class CQueue {
 		//@ open CQueueInv(this);
 		this.mon.lock();
 		//@ open CQueue_shared_state(this)();
-		if (this.right.isEmpty()) 
+		while (this.isEmpty()) 
+		{
+			//@ close CQueue_shared_state(this)();
+			empty.await();
+			//@ open CQueue_emptyQueue(this)();
+		}
+		//@ assert !CQueue_emptyQueue(this)();
+		if(this.right.isEmpty()) 
 		{
 			flush();
 		}
+		//@ close CQueue_nonzero(this)();
+		empty.signal();
 		//@ close CQueue_shared_state(this)();
 		this.mon.unlock();
 		
