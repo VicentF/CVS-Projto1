@@ -78,14 +78,15 @@ public class CQueue {
 		this.left.push(elem);
 		//@ close CQueue_shared_state(this)();
 		this.mon.unlock();
+		//@ close CQueueInv(this);
 	}
 	
 	private void flush() 
-	//@ requires CQueueInv(this);
+	//@ requires CQueueInv(this) &*& this.right |-> ?r &*& r.head |-> ?rh &*& rh == null &*& this.left |-> ?l &*& l.head |-> ?lh &*& lh != null;
 	//@ ensures CQueueInv(this);
 	{	
 		//@ open CQueueInv(this);
-		//@ open CQueue_shared_state(this)();
+		//@ open CQueue_shared_state(this) ();
 		this.left.flip();
 		this.right = this.left;
 		this.left = new Stack();
@@ -101,7 +102,6 @@ public class CQueue {
 		//@ open CQueue_shared_state(this)();
 		while (this.isEmpty()) 
 		{
-			//@ close CQueue_shared_state(this)();
 			empty.await();
 			//@ open CQueue_emptyQueue(this)();
 		}
@@ -110,11 +110,11 @@ public class CQueue {
 		{
 			flush();
 		}
-		//@ close CQueue_nonzero(this)();
-		empty.signal();
+		//@ close CQueue_emptyQueue(this)();
+		if(this.isEmpty()) { empty.signal(); }
 		//@ close CQueue_shared_state(this)();
 		this.mon.unlock();
-		
+		//@ close CQueueInv(this);
 		
 		return this.right.pop();
 	}

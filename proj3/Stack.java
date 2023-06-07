@@ -4,7 +4,6 @@
 	predicate Node(Node t; Node n, int v) = t.next |-> n &*& t.val |-> v;
 	predicate List(Node n; list<int> elems) = n == null? (emp &*& elems == nil): Node(n,?nn,?v) &*& List(nn,?tail) &*& elems == cons(v,tail);
 	predicate StackInv(Stack l; list<int> elems) = l.head |-> ?h &*& List(h,elems);
-	predicate NonEmptyStackInv(Stack t; list<int> elems) = t.head |-> ?h &*& h != null &*& List(h, elems);
 @*/
 
 // TASK 1
@@ -21,8 +20,10 @@ public class Stack {
 	
 	public boolean isEmpty() 
     	//@ requires StackInv(this, ?l);
-    	//@ ensures result?StackInv(this, ?l2):NonEmptyStackInv(this, ?l2);
+    	//@ ensures StackInv(this, l) &*& result ? l == nil : l != nil;
     	{
+    		//@ open StackInv(this, l);
+    		//@ open List(head, l);
 		return head == null;
     	}
 
@@ -35,18 +36,22 @@ public class Stack {
     	}
 
     	public int pop() 
-    	//@ requires NonEmptyStackInv(this, cons(?v, ?t));
-    	//@ ensures StackInv(this, t) &*& result == v;
+    	//@ requires StackInv(this, cons(?h, ?t));
+    	//@ ensures StackInv(this, t) &*& result == h;
     	{
+    		//@ open StackInv(this, cons(h, t));
+    		//@ open List(head, cons(h,t));
     		int val = head.val; 
     		head = head.next; 
     		return val;
     	}
 
     	public int peek() 
-    	//@ requires NonEmptyStackInv(this, ?l);
-    	//@ ensures StackInv(this, ?l2);
+    	//@ requires StackInv(this, cons(?h, ?t));
+    	//@ ensures StackInv(this, cons(h, t));
     	{
+    		//@ open StackInv(this, cons(h, t));
+    		//@ open List(head, cons(h,t));
 		return head.val;
     	}
 
