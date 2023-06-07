@@ -43,7 +43,8 @@ import java.util.concurrent.locks.*;
 							
 	predicate_ctor CQueue_notEmptyQueue(CQueue q) () = q.left |-> ?l &*& StackInv(l, ?ll) 
 							&*& q.right |-> ?r &*& StackInv(r, ?lr) 
-							&*& (lr != nil || ll != nil);
+							&*& (lr != nil || ll != nil) 
+							&*& l != null &*& r != null;
 @*/
 
 // TASK 2
@@ -87,13 +88,10 @@ public class CQueue {
 	//@ requires (this.left |-> ?l &*& StackInv(l, ?ll)) &*& (this.right |-> ?r &*& StackInv(r, ?rl)) &*& l != null &*& r != null &*& rl == nil &*& ll != nil;
 	//@ ensures (this.left |-> ?l2 &*& StackInv(l2, rl)) &*& (this.right |-> ?r2 &*& StackInv(r2, reverse(ll))) &*& l2 != null &*& r2 != null;
 	{	
-
 		this.left.flip();
 		//@ reverse_nnil(ll);
 		this.right = this.left;
 		this.left = new Stack();
-		//@ assert this.left != null;
-		//@ assert this.right != null;
 	}
 	
 	public int dequeue() 
@@ -102,12 +100,11 @@ public class CQueue {
 	{
 		this.mon.lock();
 		//@ open CQueue_shared_state(this)();
-		//@ assert this.left != null;
-		//@ assert this.right != null;
 		while (this.right.isEmpty() && this.left.isEmpty()) 
 		/*@ invariant (this.left |-> ?l &*& StackInv(l, ?ll)) 
 				&*& (this.right |-> ?r &*& StackInv(r, ?rl))
-				&*& l != null &*& r != null
+				&*& l != null 
+				&*& r != null
 				&*& this.notEmpty |-> ?qc
 				&*& qc != null
 				&*& cond(qc, CQueue_shared_state(this), CQueue_notEmptyQueue(this));
@@ -117,16 +114,20 @@ public class CQueue {
 			try { notEmpty.await(); }  catch (InterruptedException e) {} 
 			//@ open CQueue_notEmptyQueue(this)();
 		}
-		//@ assert !CQueue_notEmptyQueue(this)();
+		
 		if(this.right.isEmpty()) 
 		{
 			flush();
+			//@ reverse_nnil(ll);
+			//@ assert this.right |-> ?rs &*& StackInv(rs, ?dl) &*& dl != nil;
 		}
-		//@ close CQueue_notEmptyQueue(this)();
+	
+		int result = this.right.pop();
+		//@ close CQueue_shared_state(this)();
 		this.mon.unlock();
-		//@ close CQueueInv(this);
-		
-		return this.right.pop();
+
+    		//@ close CQueueInv(this);
+    		return result;
 	}
 	
 	public boolean isEmpty() 
@@ -144,20 +145,3 @@ public class CQueue {
 	}
 	
 }
-
-/*
-public static void main(String[] args)
-    //@ requires System_out(?o) &*& o != null;
-    //@ ensures true;
-    {
-        CQueue q = new CQueue();
-        for(int i = 0 ; i < 100 ; i++)
-        //@ invariant [?f]CQueueInv(q) &*& [_]System_out(o) &*& o != null;
-        {
-            //@ close [f/2]CQueueInv(q);
-            (new MyEnqThread(q, i)).start();
-            //@ close [f/4]CQueueInv(q);
-            (new MyDeqThread(q)).start();
-        }
-    }
-*/
