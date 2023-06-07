@@ -29,14 +29,14 @@ import java.util.concurrent.locks.*;
 @*/
 
 /*@
-	predicate CQueueInv(CQueue q, list<int> left, list<int> right) = q.mon |-> ?l 
-									&*& l != null 
-									&*& lck(l, 1, CQueue_shared_state(q, left, right));
+	predicate CQueueInv(CQueue q;) = q.mon |-> ?l 
+					&*& l != null 
+					&*& lck(l, 1, CQueue_shared_state(q));
 
 	
-	predicate_ctor CQueue_shared_state (CQueue q, list<int> left, list<int> right) () = (q.left |-> ?l &*& StackInv(l, left)) 
-									     		&*& (q.right |-> ?r &*& StackInv(r, right))
-									     		&*& l != null &*& r != null;
+	predicate_ctor CQueue_shared_state (CQueue q) () = (q.left |-> ?l &*& StackInv(l, ?l1)) 
+							&*& (q.right |-> ?r &*& StackInv(r, ?r2))
+							&*& l != null &*& r != null;
 @*/
 
 // TASK 2
@@ -48,49 +48,64 @@ public class CQueue {
 	
 	public CQueue()
 	//@ requires true;
-	//@ ensures CQueueInv(this, nil, nil);
+	//@ ensures CQueueInv(this);
 	{
 		this.left = new Stack();
 		this.right = new Stack();
-		//@ close CQueue_shared_state(this, nil, nil)();
-		//@ close enter_lck(1, CQueue_shared_state(this, nil, nil));
+		//@ close CQueue_shared_state(this)();
+		//@ close enter_lck(1, CQueue_shared_state(this));
 		this.mon = new ReentrantLock();
-		//@ assert this.mon |-> ?l  &*& lck(l, 1, CQueue_shared_state(this, nil, nil));
- 		//@ close CQueueInv(this, nil, nil);
+		//@ assert this.mon |-> ?l  &*& lck(l, 1, CQueue_shared_state(this));
+ 		//@ close CQueueInv(this);
 	}
 	
-	private void enqueue(int elem) 
-	//@ requires CQueueInv(this, ?l, ?r);
-	//@ ensures NonEmptyStackInv(this.left, cons(?v, ?t)) &*& CQueueInv(this, ?l2, r);
+	public void enqueue(int elem) 
+	//@ requires CQueueInv(this);
+	//@ ensures CQueueInv(this);
 	{
-		//@ open CQueueInv(this, l, r);
+		//@ open CQueueInv(this);
 		this.mon.lock(); 
-		//@ open CQueue_shared_state(this, l, r)();
+		//@ open CQueue_shared_state(this)();
 		this.left.push(elem);
-		//@ close CQueue_shared_state(this, l, r)();
+		//@ close CQueue_shared_state(this)();
 		this.mon.unlock();
 	}
 	
-	public void flush() 
-	// requires
-	// ensures
-	{
-		this.right = this.left.flip();
+	private void flush() 
+	//@ requires CQueueInv(this);
+	//@ ensures CQueueInv(this);
+	{	
+		//@ open CQueueInv(this);
+		this.mon.lock();
+		//@ open CQueue_shared_state(this)();
+		this.left.flip();
+		this.right = this.left;
 		this.left = new Stack();
+		//@ close CQueue_shared_state(this)();
+		this.mon.unlock();
 	}
 	
 	public int dequeue() 
-	// requires
-	// ensures
+	//@ requires CQueueInv(this);
+	//@ ensures CQueueInv(this);
 	{
-		if (this.right.isEmpty())
+		//@ open CQueueInv(this);
+		this.mon.lock();
+		//@ open CQueue_shared_state(this)();
+		if (this.right.isEmpty()) 
+		{
 			flush();
+		}
+		//@ close CQueue_shared_state(this)();
+		this.mon.unlock();
+		
+		
 		return this.right.pop();
 	}
 	
 	public boolean isEmpty() 
-	// requires
-	// ensures
+	//@ requires CQueueInv(this);
+	//@ ensures CQueueInv(this);
 	{
 		return this.right.isEmpty() && this.left.isEmpty();
 	}

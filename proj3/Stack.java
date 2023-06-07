@@ -28,8 +28,7 @@ public class Stack {
 
     	public void push(int newVal) 
     	//@requires StackInv(this, ?l);
-    	//@ensures NonEmptyStackInv(this, cons(?v, ?t));
-    	// ensures NonEmptyStackInv(this, ?l) &*& StackInv(this, ?);
+    	//@ensures StackInv(this, cons(newVal, l));
     	{
     		Node newNode = new Node(newVal, head);
     		head = newNode;
@@ -38,8 +37,6 @@ public class Stack {
     	public int pop() 
     	//@ requires NonEmptyStackInv(this, cons(?v, ?t));
     	//@ ensures StackInv(this, t) &*& result == v;
-    	// requires NonEmptyStackInv(this, ?elems);
-    	// ensures StackInv(this, tail(elems)) &*& result == head(elems);
     	{
     		int val = head.val; 
     		head = head.next; 
