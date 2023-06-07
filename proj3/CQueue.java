@@ -32,17 +32,18 @@ import java.util.concurrent.locks.*;
 	predicate CQueueInv(CQueue q;) = q.mon |-> ?l 
 					&*& l != null 
 					&*& lck(l, 1, CQueue_shared_state(q))
-					&*& q.empty |-> ?qc
+					&*& q.notEmpty |-> ?qc
 					&*& qc != null
-					&*& cond(qc, CQueue_shared_state(q), CQueue_emptyQueue(q));
+					&*& cond(qc, CQueue_shared_state(q), CQueue_notEmptyQueue(q));
 
 	
 	predicate_ctor CQueue_shared_state (CQueue q) () = (q.left |-> ?l &*& StackInv(l, ?l1)) 
 							&*& (q.right |-> ?r &*& StackInv(r, ?r2))
 							&*& l != null &*& r != null;
 							
-	predicate_ctor CQueue_emptyQueue(CQueue q) () = q.left |-> ?l &*& StackInv(l, ?ll) &*& ll == nil
-							&*& q.right |-> ?r &*& StackInv(l, ?lr) &*& lr == nil;
+	predicate_ctor CQueue_notEmptyQueue(CQueue q) () = q.left |-> ?l &*& StackInv(l, ?ll) 
+							&*& q.right |-> ?r &*& StackInv(r, ?lr) 
+							&*& (lr != nil || ll != nil);
 @*/
 
 // TASK 2
@@ -51,7 +52,7 @@ public class CQueue {
 	Stack left;
 	Stack right;
 	ReentrantLock mon;
-	Condition empty;
+	Condition notEmpty;
 	
 	public CQueue()
 	//@ requires true;
@@ -63,8 +64,8 @@ public class CQueue {
 		//@ close enter_lck(1, CQueue_shared_state(this));
 		this.mon = new ReentrantLock();
 		//@ assert this.mon |-> ?l  &*& lck(l, 1, CQueue_shared_state(this));
- 		//@ close set_cond(CQueue_shared_state(this), CQueue_emptyQueue(this));
-		this.empty = mon.newCondition();
+ 		//@ close set_cond(CQueue_shared_state(this), CQueue_notEmptyQueue(this));
+		this.notEmpty = mon.newCondition();
  		//@ close CQueueInv(this);
 	}
 	
@@ -76,43 +77,52 @@ public class CQueue {
 		this.mon.lock(); 
 		//@ open CQueue_shared_state(this)();
 		this.left.push(elem);
-		//@ close CQueue_shared_state(this)();
+		//@ close CQueue_notEmptyQueue(this)();
+		notEmpty.signal();
 		this.mon.unlock();
 		//@ close CQueueInv(this);
 	}
 	
 	private void flush() 
-	//@ requires CQueueInv(this) &*& this.right |-> ?r &*& r.head |-> ?rh &*& rh == null &*& this.left |-> ?l &*& l.head |-> ?lh &*& lh != null;
-	//@ ensures CQueueInv(this);
+	//@ requires (this.left |-> ?l &*& StackInv(l, ?ll)) &*& (this.right |-> ?r &*& StackInv(r, ?rl)) &*& l != null &*& r != null &*& rl == nil &*& ll != nil;
+	//@ ensures (this.left |-> ?l2 &*& StackInv(l2, rl)) &*& (this.right |-> ?r2 &*& StackInv(r2, reverse(ll))) &*& l2 != null &*& r2 != null;
 	{	
-		//@ open CQueueInv(this);
-		//@ open CQueue_shared_state(this) ();
+
 		this.left.flip();
+		//@ reverse_nnil(ll);
 		this.right = this.left;
 		this.left = new Stack();
-		//@ close CQueue_shared_state(this)();
+		//@ assert this.left != null;
+		//@ assert this.right != null;
 	}
 	
 	public int dequeue() 
 	//@ requires CQueueInv(this);
 	//@ ensures CQueueInv(this);
 	{
-		//@ open CQueueInv(this);
 		this.mon.lock();
 		//@ open CQueue_shared_state(this)();
-		while (this.isEmpty()) 
+		//@ assert this.left != null;
+		//@ assert this.right != null;
+		while (this.right.isEmpty() && this.left.isEmpty()) 
+		/*@ invariant (this.left |-> ?l &*& StackInv(l, ?ll)) 
+				&*& (this.right |-> ?r &*& StackInv(r, ?rl))
+				&*& l != null &*& r != null
+				&*& this.notEmpty |-> ?qc
+				&*& qc != null
+				&*& cond(qc, CQueue_shared_state(this), CQueue_notEmptyQueue(this));
+		@*/
 		{
-			empty.await();
-			//@ open CQueue_emptyQueue(this)();
+			//@ close CQueue_shared_state(this)();
+			try { notEmpty.await(); }  catch (InterruptedException e) {} 
+			//@ open CQueue_notEmptyQueue(this)();
 		}
-		//@ assert !CQueue_emptyQueue(this)();
+		//@ assert !CQueue_notEmptyQueue(this)();
 		if(this.right.isEmpty()) 
 		{
 			flush();
 		}
-		//@ close CQueue_emptyQueue(this)();
-		if(this.isEmpty()) { empty.signal(); }
-		//@ close CQueue_shared_state(this)();
+		//@ close CQueue_notEmptyQueue(this)();
 		this.mon.unlock();
 		//@ close CQueueInv(this);
 		
@@ -123,7 +133,14 @@ public class CQueue {
 	//@ requires CQueueInv(this);
 	//@ ensures CQueueInv(this);
 	{
-		return this.right.isEmpty() && this.left.isEmpty();
+		//@ open CQueueInv(this);
+		this.mon.lock(); 
+		//@ open CQueue_shared_state(this)();
+		boolean val = this.right.isEmpty() && this.left.isEmpty();
+		//@ close CQueue_shared_state(this)();
+		this.mon.unlock();
+		//@ close CQueueInv(this);
+		return val;
 	}
 	
 }
